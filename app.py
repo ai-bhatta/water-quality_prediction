@@ -40,8 +40,25 @@ if uploaded_file:
     # Preprocess data
     df_num = df.select_dtypes(include=[np.number])
     df_num.fillna(df_num.mean(), inplace=True)
+    # --- Safe scaling fix for Streamlit deployment ---
+try:
+    expected_features = scaler.feature_names_in_
+    # Align uploaded data columns with those expected by the scaler
+    df_num = df_num[[col for col in expected_features if col in df_num.columns]]
+
+    # Warn if columns are missing
+    missing_cols = set(expected_features) - set(df_num.columns)
+    if missing_cols:
+        st.warning(f"⚠️ Missing columns from uploaded dataset: {', '.join(missing_cols)}. "
+                   "These columns will be ignored for clustering.")
+
     X_scaled = scaler.transform(df_num)
-    X_pca = pca.transform(X_scaled)
+except Exception as e:
+    st.error(f"Error during data scaling: {e}")
+    st.stop()
+
+X_pca = pca.transform(X_scaled)
+
 
     # Predict clusters
     clusters = kmeans.predict(X_scaled)
